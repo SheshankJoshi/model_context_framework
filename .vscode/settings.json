@@ -1,0 +1,37 @@
+{
+  //"python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",  // Adjust for Windows if needed
+  "python.envFile": "${workspaceFolder}/${workspaceFolderBasename}/.env",
+  "python.analysis.extraPaths": [
+    // "${workspaceFolder}/${workspaceFolderBasename}",
+    "${workspaceFolder}/${workspaceFolderBasename}/src"
+    // "${workspaceFolder}/${workspaceFolderBasename}/lib"
+    //"${workspaceFolder}/venv/lib/python3.x/site-packages"  // Adjust for your Python version
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": true,
+  "python.testing.cwd": "${workspaceFolder}/${workspaceFolderBasename}/src",
+  "python.testing.autoTestDiscoverOnSaveEnabled": true,
+  "python.testing.nosetestsEnabled": false,
+  "python.testing.pytestPath": "${workspaceFolder}/${workspaceFolderBasename}/tests", // Adjust for Windows if needed
+  "python.testing.unittestPath": "${workspaceFolder}/${workspaceFolderBasename}/tests/unittest", // Adjust for Windows if needed
+  "python.testing.pytestArgs": ["tests"],
+  "debugpy.adapterType": "legacy", // Allows breakpoints in library code
+  "terminal.integrated.cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+  "python.analysis.autoImportCompletions": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.terminal.activateEnvironment": true,
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/${workspaceFolderBasename}/src"
+  ],
+  "python.analysis.typeCheckingMode": "standard",
+  "python.env.extraPaths": [
+    "${workspaceFolder}/${workspaceFolderBasename}/src"
+    // "${workspaceFolder}/venv/lib/python3.x/site-packages"  // Adjust for your Python version
+  ],
+  "terminal.integrated.env.linux": {
+    "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+  },
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}\\${workspaceFolderBasename}\\src"
+  }
+}

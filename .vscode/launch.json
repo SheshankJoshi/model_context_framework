@@ -1,0 +1,82 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Python: Debug Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src/${workspaceFolderBasename}"
+            }
+        },
+        {
+          "name": "Python: Debug App",
+          "type": "python",
+          "request": "launch",
+          "program": "${workspaceFolder}/${workspaceFolderBasename}/src/cli.py",
+          "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+          "console": "integratedTerminal",
+          "justMyCode": false, // Allows debugging of external library code
+            "env": {
+              "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+            }
+        },
+        {
+          "name": "Project Debug (JMC: true)",
+          "type": "python",
+          "request": "launch",
+          "program": "${workspaceFolder}/${workspaceFolderBasename}/src/main.py",
+          "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+          "console": "integratedTerminal",
+          "justMyCode": true,
+          "envFile": "${workspaceFolder}/${workspaceFolderBasename}/.env",
+          "env": {
+            "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+          }
+        },
+    {
+      "name": "Project Debug (JMC: false)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/${workspaceFolderBasename}/src/main.py",
+      "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "envFile": "${workspaceFolder}/${workspaceFolderBasename}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+      }
+    },
+    {
+      "name": "File Debug (JMC: true)",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "envFile": "${workspaceFolder}/${workspaceFolderBasename}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+      }
+    },
+    {
+      "name": "File Debug (JMC: false)",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}/${workspaceFolderBasename}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "envFile": "${workspaceFolder}/${workspaceFolderBasename}/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/${workspaceFolderBasename}/src"
+      }
+    }
+    ]
+}
