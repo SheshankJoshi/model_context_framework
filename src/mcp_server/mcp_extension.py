@@ -2,13 +2,42 @@ import json
 import os
 import time
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional, Awaitable, Callable
+from httpx import request
+from lmstudio import BaseModel
+from mcp import ClientNotification
 from mcp.server.fastmcp import FastMCP, Context
-import starlette
+from mcp.shared.context import RequestContext
+import uuid
+import asyncio
+from pydantic import Field
 from starlette.routing import Route
 from starlette.applications import Starlette
+from starlette_context.middleware import ContextMiddleware
+from mcp.types import ErrorData, INVALID_REQUEST, ServerResult, EmptyResult, NotificationParams, Notification, ProgressNotification
 
 TOOLS_PERSISTENCE_FILE = "registered_tools.json"
+
+class SessionConfig(BaseModel):
+    """Data model for session configuration."""
+    session_id: str
+    config: Dict[str, Any]
+
+class ToolConfig(BaseModel):
+    request_id: str
+    tool_name: str
+    tool_config: Dict[str, Any]
+    
+class ConfigNotificationParams(NotificationParams):
+    """Custom notification parameters for session configuration."""
+    # Add any additional fields you need for your notification
+    params: Dict[str, str] = Field(default={})
+    method: Literal["client/session_config"] = Field(default="client/session_config")
+
+class ConfigNotification(Notification):
+    """Data model for session configuration notification to the server after a handshake is established."""
+    params: ConfigNotificationParams
+
 
 class ExtendedMCP(FastMCP):
     def __init__(self, *args, **kwargs):
@@ -17,6 +46,11 @@ class ExtendedMCP(FastMCP):
         # self.load_persisted_tools()
         self.tools_loaded_persist = False
         self._extra_paths = {}
+        self.session_config_store: Dict[str, Dict[str, Any]] = {}
+        # self._mcp_server.notification_handlers[ProgressNotification] = self.handle_session_config_notification #type: ignore
+        # Additional configuration here
+        # self._mcp_server.request_handlers[SessionConfig] = self.handle_session_config
+        # self._mcp_server.request_handlers[ToolConfig] = self.handle_tool_config
 
     def load_persisted_tools(self):
         """Load persisted tools from a JSON file and register them."""
@@ -49,7 +83,7 @@ class ExtendedMCP(FastMCP):
         """Lookup a tool function by name from known modules.
            Extend this to dynamically import modules if needed.
         """
-        from my_mcp.tool_mapping import mapping_tools
+        from tool_mapping import mapping_tools
         return mapping_tools.get(func_name)
 
     def _load_tool_from_code(self, code: str, tool_name: str):
@@ -140,8 +174,40 @@ class ExtendedMCP(FastMCP):
     def sse_app(self):
         """This is going to add some extra paths to the Starlette app, with underlying mechanism"""
         app = super().sse_app()
+        app.add_middleware(ContextMiddleware)
         self.append_extra_routes(app)
         return app
+    
+    async def create_context(self, request) -> Context:
+        # Call the base method to create the default context.
+        context = await super().create_context(request)  # type: ignore
+        session_context = context.request_context.session
+
+        # Capture incoming headers from the request.
+        if request.headers:
+            session_context.headers = dict(request.headers)
+        
+        # If a session id is provided in the headers, use it; otherwise, generate a new one.
+        session_id = session_context.headers.get("x-session-id")
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            # Optionally, you may update the headers with the new session id.
+            session_context.headers["x-session-id"] = session_id
+        
+        # Store the session id in the session context.
+        session_context.session_id = session_id
+        
+        # Optionally, you can extract query parameters or any other data from the request.
+        if hasattr(request, "query_params"):
+            session_context.query_params = dict(request.query_params)
+        
+        # Here you can set any additional variables that you want available for a particular tool call.
+        # For example, you might want to extract a custom header:
+        custom_value = session_context.headers.get("x-custom-variable")
+        if custom_value:
+            session_context.custom_variable = custom_value
+
+        return context
 
     def route(self, path: str, methods=["GET"]):
         """
@@ -158,8 +224,148 @@ class ExtendedMCP(FastMCP):
             return fn
         return decorator
 
+    async def handle_session_config(self, context: RequestContext, method: str, params: Any):
+        """Handle session configuration messages."""
+        async def give_result(end="success"):
+            """Return an empty result."""
+            if end == "success":
+                return EmptyResult()
+            else:
+                return ErrorData(code=INVALID_REQUEST, message="Invalid config format")
+        if method == "client/session_config":
+            session_id = context.request_id
+            if not isinstance(params, dict):
+                return give_result("Invalid config format")
+
+            self.session_config_store[str(session_id)] = params
+            context.session.config = params
+        return give_result("success")
+    
+    
+    # Currently we are handling on progress notification. We are not handling anything else.
+    async def handle_session_config_notification(self, context: Context, notification: ProgressNotification) -> None:
+        """
+        Notification handler for session configuration.
+    
+        Expects a ConfigNotification with method "client/session_config" and a dict of parameters.
+        If valid, updates (or appends) the session configuration in the underlying session context.
+        """
+        # Extract method and parameters. If notification.params is a ConfigNotificationParams instance,
+        # call .dict() to convert it to a dict.
+        method = notification.method
+        params = notification.params.dict() if hasattr(notification.params, "dict") else notification.params
+
+        if method != "client/session_config":
+            await context.error(f"Unexpected method {method} in session config notification.")
+            return
+
+        if not isinstance(params, dict):
+            await context.error("Invalid config format in session config notification; expected dict.")
+            return
+
+        # Get current session configuration from the context; update or assign anew.
+        current_config = getattr(context.session, "config", {}) or {}
+        if not isinstance(current_config, dict):
+            current_config = {}
+        current_config.update(params)
+        
+        # Optionally, store the configuration in the server's session_config_store.
+        self.session_config_store[str(context.request_id)] = current_config
+        
+        await context.info(f"Session config updated for request {context.request_id}: {current_config}")
+
+    # In __init__ or appropriate setup add the handler to notification_handlers:
+    # self.notification_handlers[<NotificationType>] = self.handle_session_config_notification
+    # For example, if using the "session/config" method for notifications, you can assign a dummy type:
+    # self.notification_handlers["session/config"] = self.handle_session_config_notification
+
+
+    # async def handle_notification2(self, context: RequestContext, method: str, params: Any):
+    #     if method == "session/config":
+    #         session_id = context.request_id
+    #         if not isinstance(params, dict):
+    #             return ErrorData(code=INVALID_REQUEST, message="Invalid config format")
+
+    #         self.session_config_store[session_id] = params
+    #         context.session.config = params  # optionally make it available through context
+    #         print(f"Stored config for session {session_id}: {params}")
+    #         return
+
+        # return await super().handle_notification(context, method, params)
+
+
+
     def append_extra_routes(self, app: Starlette):
         """Append extra routes stored by the route decorator to the Starlette app."""
         for path, info in self._extra_paths.items():
             app.router.routes.append(Route(path, info["fn"], methods=info["methods"]))
+            
+            
+    def wrap_tool_function(self, fn: Callable[..., Any]) -> Callable[..., Any]:
+        """
+        Returns a wrapped version of fn that, when invoked with a context,
+        injects environment variables from the client's env_config and restores them afterward.
+        """
+        if asyncio.iscoroutinefunction(fn):
+            async def async_wrapper(*args, **kwargs):
+                context: Optional[Context] = kwargs.get("context")
+                old_env = {}
+                env_config = {}
+                if context is not None and hasattr(context.session, "config"):
+                    session_config = context.session.config
+                    if isinstance(session_config, dict):
+                        env_config = session_config.get("env_config", {})
+                # Pre-call: set env variables from env_config.
+                for key, value in env_config.items():
+                    if key in os.environ:
+                        old_env[key] = os.environ[key]
+                    os.environ[key] = str(value)
+                try:
+                    result = await fn(*args, **kwargs)
+                finally:
+                    # Post-call: restore the original environment.
+                    for key in env_config.keys():
+                        if key in old_env:
+                            os.environ[key] = old_env[key]
+                        else:
+                            os.environ.pop(key, None)
+                return result
+            return async_wrapper
+        else:
+            def sync_wrapper(*args, **kwargs):
+                context: Optional[Context] = kwargs.get("context")
+                old_env = {}
+                env_config = {}
+                if context is not None and hasattr(context.session, "config"):
+                    session_config = context.session.config
+                    if isinstance(session_config, dict):
+                        env_config = session_config.get("env_config", {})
+                # Pre-call: set environment variables.
+                for key, value in env_config.items():
+                    if key in os.environ:
+                        old_env[key] = os.environ[key]
+                    os.environ[key] = str(value)
+                try:
+                    result = fn(*args, **kwargs)
+                finally:
+                    # Post-call: restore original environment.
+                    for key in env_config.keys():
+                        if key in old_env:
+                            os.environ[key] = old_env[key]
+                        else:
+                            os.environ.pop(key, None)
+                return result
+            return sync_wrapper
+
+    def add_tool(self, fn: Callable[..., Any], name: Optional[str]=None, description: Optional[str] = None):
+        """
+        Wrap the tool function to inject environment configuration on each call, and then use the
+        default add_tool mechanism from the underlying ToolManager.
+        """
+        # Wrap the function:
+        wrapped_fn = self.wrap_tool_function(fn)
+        # Call the base (or underlying tool manager) add_tool:
+        super().add_tool(wrapped_fn, name=name, description=description)
+        # Optionally, update your local tool registry.
+        self.tool_registry[name] = {"name": name, "description": description} #type: ignore
 

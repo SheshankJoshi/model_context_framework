@@ -21,7 +21,7 @@ Mechanism:
 import pkgutil
 import importlib
 import inspect
-from my_mcp.mcp_server import mcp, ExtendedMCPType
+from mcp_server import mcp, ExtendedMCPType
 import logging
 logger = logging.getLogger(__name__)
 

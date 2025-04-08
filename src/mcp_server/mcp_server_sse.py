@@ -1,7 +1,9 @@
+from attr import has
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
-from mcp.server.fastmcp import Context
-from my_mcp.mcp_server.mcp_extension import ExtendedMCP
+from mcp.server.fastmcp import Context as MCPContext
+from mcp_server.mcp_extension import ExtendedMCP
+from starlette_context.middleware import ContextMiddleware
 from typing import TYPE_CHECKING, TypeVar
 import logging
 
@@ -20,15 +22,28 @@ mcp_settings = {
 # Instantiate our extended MCP server.
 mcp = ExtendedMCP(name = "Detailed MCP Server", instructions=None,  **mcp_settings)
 
+
 # Register static tools.
 @mcp.tool()
-def echo_tool(message: str, context: Context) -> str:
+async def echo_tool(message: str, context: MCPContext) -> str:
     """A simple echo tool that returns the message prefixed with 'Echo:'."""
     logging.debug(f"echo_tool invoked with message: {message}")
+    # nonlocal context
+    print("The context here is :", context)
+    await context.info("Info from echo tool")	
+    await context.warning("Warning from echo tool")
+    print("=======1==========")
+    # headers =  context.request_context.session.headers
+    client_parameters = context.session.client_params
+    if hasattr(client_parameters, "model_extra"):
+        # If the client_params has model_extra, we can access it
+        session_env = client_parameters.model_extra["env_config"]
+    print("session meta is :", session_env)
+    print("========3=========")
     return f"Echo: {message}"
 
 @mcp.tool()
-def langchain_search(query: str, context: Context) -> str:
+def langchain_search(query: str) -> str:
     """A simulated search tool that returns dummy search results."""
     return f"Simulated search results for query: {query}"
 

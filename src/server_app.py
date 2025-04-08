@@ -1,4 +1,4 @@
-from my_mcp.mcp_server import mcp
+from mcp_server import mcp
 import tools
 if __name__ == "__main__":
     print(mcp.settings.port)

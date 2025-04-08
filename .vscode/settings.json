@@ -3,7 +3,7 @@
   "python.envFile": "${workspaceFolder}/.env",
   "python.analysis.extraPaths": [
     // "${workspaceFolder}/${workspaceFolderBasename}",
-    "${workspaceFolder}/${workspaceFolderBasename}/src"
+    "${workspaceFolder}/src"
     // "${workspaceFolder}/${workspaceFolderBasename}/lib"
     //"${workspaceFolder}/venv/lib/python3.x/site-packages"  // Adjust for your Python version
   ],

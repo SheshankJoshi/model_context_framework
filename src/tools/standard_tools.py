@@ -3,7 +3,7 @@ from langchain_google_community import GoogleSearchAPIWrapper
 from functools import partial
 import os
 from pptx import Presentation
-from my_mcp.mcp_server import mcp
+from mcp_server import mcp
 
 @mcp.tool(name="google_search",
           description="Search Google for recent results")
