@@ -94,8 +94,17 @@ class LmstudioLLM(LLM):
         # Create a fresh chat with the prompt prefix, then add the user prompt.
         chat = lms.Chat(self.prompt_prefix)
         chat.add_user_message(prompt)
-        # Call the model synchronously.
-        response = self.lm_model.respond(chat)
+        # Call the model synchronously with error handling for bosToken issues.
+        try:
+            response = self.lm_model.respond(chat)
+        except Exception as e:
+            if "bosToken" in str(e):
+                # Fallback: try with a simpler prompt
+                simple_chat = lms.Chat()
+                simple_chat.add_user_message(prompt)
+                response = self.lm_model.respond(simple_chat)
+            else:
+                raise e
         # Extract response text and metadata.
         if not isinstance(response, str):
             try:
