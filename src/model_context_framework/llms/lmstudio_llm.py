@@ -1,3 +1,27 @@
+"""
+LMStudio LLM Wrapper for LangChain Integration.
+
+This module provides a LangChain-compatible wrapper for LMStudio LLM models,
+enabling easy integration of local LMStudio models into LangChain workflows.
+
+The wrapper handles model loading, conversation management, and response processing
+while providing comprehensive error handling for common issues like server 
+connectivity and model availability.
+
+Usage:
+    from model_context_framework.llms.lmstudio_llm import get_llm
+    
+    llm = get_llm()
+    if llm:
+        response = llm.invoke("Your question here")
+        print(response)
+
+Requirements:
+    - LMStudio server running on localhost:1234
+    - At least one model loaded in LMStudio  
+    - lmstudio Python package installed
+"""
+
 from __future__ import annotations
 from langchain.llms.base import LLM
 import lmstudio as lms
@@ -13,7 +37,23 @@ LMSTUDIO_SERVER_API_HOST = "localhost:1234"
 default_client = lms.get_default_client(LMSTUDIO_SERVER_API_HOST)
 
 class LmstudioLLM(LLM):
-    """A LangChain LLM wrapper for an lmstudio LLM model."""
+    """
+    A LangChain LLM wrapper for LMStudio LLM models.
+    
+    This class provides a LangChain-compatible interface to LMStudio models,
+    enabling seamless integration with LangChain workflows and applications.
+    
+    Attributes:
+        lm_model: The underlying LMStudio LLM model instance
+        prompt_prefix: System prompt prefix for all conversations
+        last_metadata: Metadata from the most recent model response
+        
+    Example:
+        >>> llm = get_llm()  # Get an LMStudio LLM instance
+        >>> if llm:
+        ...     response = llm.invoke("What is the capital of France?")
+        ...     print(response)
+    """
     lm_model: lms.LLM = Field(...)
     prompt_prefix: str = Field("You are a helpful assistant, who just answers questions promptly")
     last_metadata: dict = Field(default_factory=dict)
@@ -101,23 +141,46 @@ class LmstudioLLM(LLM):
         return self._call(inp, stop=stop, **kwargs)
 
 def get_llm() -> Optional[LmstudioLLM]:
+    """
+    Get an LMStudio LLM instance with proper error handling.
+    
+    Returns:
+        LmstudioLLM instance if LMStudio is running and has models loaded, None otherwise.
+        
+    Raises:
+        No exceptions are raised - all errors are caught and logged.
+    """
     try:
-        model = default_client.list_loaded_models()[0]
-        print(f"Loaded model: {model}")
+        loaded_models = default_client.list_loaded_models()
+        if not loaded_models:
+            print("Warning: No models are loaded in LMStudio. Please load a model first.")
+            return None
+            
+        model = loaded_models[0]
+        print(f"Successfully connected to LMStudio. Using model: {model}")
+        
         llm = LmstudioLLM(
             lm_model=model,  # type: ignore
             prompt_prefix="You are a helpful assistant, who just answers questions promptly"
         )
         return llm
     except Exception as e:
-        print(f"Error loading model: {e}")
+        print(f"Error connecting to LMStudio: {e}")
+        print("Please ensure:")
+        print("1. LMStudio is running")
+        print("2. LMStudio server is accessible at localhost:1234")
+        print("3. At least one model is loaded in LMStudio")
         return None
 
 if __name__ == "__main__":
+    print("Testing LMStudio LLM wrapper...")
     llm = get_llm()
     if llm:
+        print("\nTesting with a simple question...")
         result = llm.invoke("What is the capital of France?")
-        print(result)
-        print("Metadata:", llm.last_metadata)
+        print(f"Response: {result}")
+        print(f"Metadata: {llm.last_metadata}")
+        print("\nLMStudio LLM wrapper is working correctly!")
     else:
-        print("No model available.")
+        print("\nLMStudio LLM wrapper test failed - no model available.")
+        print("Please start LMStudio and load a model, then try again.")
