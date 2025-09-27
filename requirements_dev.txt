@@ -3,3 +3,6 @@ langchain-mcp-adapters==0.0.7
 python-pptx==1.0.2
 langchain_google_community==2.0.7
 lmstudio==1.2.0 # Totally optional
+autogen-agentchat
+autogen-ext[all]
+autogenstudio

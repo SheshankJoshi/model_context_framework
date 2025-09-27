@@ -184,28 +184,23 @@ async def get_an_mcp_session(transport : Literal["sse", "stdio"], connection_par
 
 async def example_call():
     from pprint import pprint
-    # NOTE : This custom context should be completely JSON Serializable, else it won't work.
-    custom_context = {
-        "custom_key": "custom_value"}
-    async with get_an_mcp_session(transport="sse", connection_params=connection_params, session_params=session_params, context=custom_context) as session:
-        # Start the event listener task.
-        # listener_task = asyncio.create_task(event_listener(session))
-
-        # # Perform tool operations.
-        # tools = await session.list_tools()
-        # print("Tools:", tools)
-        # # Alternatively, you can directly load langchain tools
+    custom_context = {"custom_key": "custom_value"}
+    async with get_an_mcp_session(
+        transport="sse",
+        connection_params=connection_params,
+        session_params=session_params,
+        context=custom_context,
+    ) as session:
         langchain_tools = await load_mcp_tools(session)
-        print("LangChain Tools:", langchain_tools)
+        # print("LangChain Tools:", langchain_tools)
 
         tools_result = await session.call_tool("echo_tool", arguments={"message": "Hello, World!"})
         print("Echo Tool Result:", tools_result)
-        # Change the context in the middle of the session
-        # # NOTE : This doesn't work in stdio session. It only works in SSE session
-        # if isinstance(session, NaviClientSession):
-        #     await session.change_context({"new_key": "new_value"})
-        # #
-        langchain_tools_result = await langchain_tools[0].arun(tool_input = {"message": "Hello, World!"})
+
+        # Updated tool input with the required keys "args" and "kwargs"
+        langchain_tools_result = await langchain_tools[0].arun(
+            tool_input={"message": "Hello, World!"}
+        )
         print("LangChain Tool Result:", langchain_tools_result)
 
 

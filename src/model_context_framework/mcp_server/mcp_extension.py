@@ -15,6 +15,7 @@ from starlette.routing import Route
 from starlette.applications import Starlette
 from starlette_context.middleware import ContextMiddleware
 from mcp.types import ErrorData, INVALID_REQUEST, ServerResult, EmptyResult, NotificationParams, Notification, ProgressNotification
+import functools  # Ensure this import is present
 
 TOOLS_PERSISTENCE_FILE = "registered_tools.json"
 
@@ -307,6 +308,7 @@ class ExtendedMCP(FastMCP):
         injects environment variables from the client's env_config and restores them afterward.
         """
         if asyncio.iscoroutinefunction(fn):
+            @functools.wraps(fn)
             async def async_wrapper(*args, **kwargs):
                 context: Optional[Context] = kwargs.get("context")
                 old_env = {}
@@ -332,6 +334,7 @@ class ExtendedMCP(FastMCP):
                 return result
             return async_wrapper
         else:
+            @functools.wraps(fn)
             def sync_wrapper(*args, **kwargs):
                 context: Optional[Context] = kwargs.get("context")
                 old_env = {}

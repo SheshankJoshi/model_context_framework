@@ -63,6 +63,7 @@ async def assistant_run_stream(agent) -> None:
 
 if __name__ == "__main__":
     import asyncio
+    
     from agentic_framework.src.my_mcp.autogen.agents import simple_assistant_agent # type: ignore
     # -- simple assistant --
     # asyncio.run(simple_assistant())
