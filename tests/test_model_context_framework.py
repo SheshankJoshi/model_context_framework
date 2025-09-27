@@ -5,7 +5,7 @@
 import pytest
 
 
-from model_context_framework import model_context_framework
+import model_context_framework
 
 
 @pytest.fixture
