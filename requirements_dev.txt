@@ -6,3 +6,6 @@ lmstudio==1.2.0 # Totally optional
 autogen-agentchat
 autogen-ext[all]
 autogenstudio
+langchain_openai
+langchain_community[all]
+langchain_experimental[all]
